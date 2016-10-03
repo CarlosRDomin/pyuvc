@@ -694,3 +694,7 @@ cdef class Control:
                 self._value = self._uvc_get(uvc.UVC_GET_CUR)
             except:
                 logger.warning("Could not get Value. Must be read disabled.")
+
+    def set_value(self, value):  # Equivalent to "value"'s setter, but this one throws an Exception if setting value failed (i.e., the user can know whether the setting was successful)
+        self._uvc_set(value)
+        self.refresh()
