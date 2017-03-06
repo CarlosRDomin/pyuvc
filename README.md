@@ -15,7 +15,7 @@ This gives the user the full flexiblity: Grab just the jpeg buffers or have them
 The `Frame` class has caching build in to avoid double decompression or conversion.
 
 
-## Example
+# Example
 ```python
 import uvc
 import logging
@@ -37,7 +37,7 @@ for x in range(10):
 cap = None
 ```
 
-##Dependencies Linux
+#Dependencies Linux
 
 ###libuvc
 ```
@@ -47,19 +47,17 @@ mkdir build
 cd build
 cmake ..
 make && sudo make install
+sudo ldconfig
 ```
 
 ### libjpeg-turbo
-Needs to be build with fpic!
-Will be installed to `/opt/libjpeg-turbo`.
-
 ```
-sudo apt-get install nasm
-wget -O libjpeg-turbo-1.3.90.tar.gz http://sourceforge.net/projects/libjpeg-turbo/files/1.3.90%20%281.4%20beta1%29/libjpeg-turbo-1.3.90.tar.gz/download
-tar xvzf libjpeg-turbo-1.3.90.tar.gz
-cd libjpeg-turbo-1.3.90
-./configure --with-pic
+wget -O libjpeg-turbo.tar.gz https://sourceforge.net/projects/libjpeg-turbo/files/1.5.1/libjpeg-turbo-1.5.1.tar.gz/download
+tar xvzf libjpeg-turbo.tar.gz
+cd libjpeg-turbo-1.5.1
+./configure --with-pic --prefix=/usr/local
 sudo make install
+sudo ldconfig
 ```
 
 ### cython
@@ -73,7 +71,7 @@ echo 'SUBSYSTEM=="usb",  ENV{DEVTYPE}=="usb_device", GROUP="plugdev", MODE="0664
 sudo udevadm trigger
 ```
 
-##Dependencies Mac
+#Dependencies Mac
 
 ###libuvc
 ```
@@ -106,3 +104,8 @@ python setup.py build_ext -i
 ```
 python setup.py install
 ```
+
+# WINDOWS
+
+Please have a look at WINDOWS_USER.md for install instructions if you want to use PYUVC.
+Please have a look at WINDOWS_DEVELOER.md for install instructions if you want to modify PYUVC.

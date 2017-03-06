@@ -42,6 +42,12 @@ uvc_error_codes = {  0:"Success (no error)",
                     -99:"Undefined error."}
 
 
+cdef str _to_str(object s):
+    if type(s) is str:
+        return <str>s
+    else:
+        return (<bytes>s).decode('utf-8')
+
 class CaptureError(Exception):
     def __init__(self, message):
         super(CaptureError, self).__init__()
@@ -57,11 +63,20 @@ class InitError(CaptureError):
         super(InitError, self).__init__(message)
         self.message = message
 
+class OpenError(InitError):
+    def __init__(self, message):
+        super(InitError, self).__init__(message)
+        self.message = message
+
+class DeviceNotFoundError(InitError):
+    def __init__(self, message):
+        super(InitError, self).__init__(message)
+        self.message = message
 #logging
 import logging
 logger = logging.getLogger(__name__)
 
-__version__ = '0.7.2' #make sure this is the same in setup.py
+__version__ = '0.10' #make sure this is the same in setup.py
 
 
 cdef class Frame:
@@ -108,7 +123,6 @@ cdef class Frame:
             self._uvc_frame = uvc_frame
             self.owns_uvc_frame = False
 
-
     def __dealloc__(self):
         if self.owns_uvc_frame:
             uvc.uvc_free_frame(self._uvc_frame)
@@ -152,7 +166,7 @@ cdef class Frame:
             Y = np.asarray(self._yuv_buffer[:y_plane_len]).reshape(self.height,self.width)
 
             if self.yuv_subsampling == turbojpeg.TJSAMP_422:
-                uv_plane_len = y_plane_len/2
+                uv_plane_len = y_plane_len//2
                 offset = y_plane_len
                 U = np.asarray(self._yuv_buffer[offset:offset+uv_plane_len]).reshape(self.height,self.width/2)
                 offset += uv_plane_len
@@ -161,7 +175,7 @@ cdef class Frame:
                 U = U[::2,:]
                 V = V[::2,:]
             elif self.yuv_subsampling == turbojpeg.TJSAMP_420:
-                uv_plane_len = y_plane_len/4
+                uv_plane_len = y_plane_len//4
                 offset = y_plane_len
                 U = np.asarray(self._yuv_buffer[offset:offset+uv_plane_len]).reshape(self.height/2,self.width/2)
                 offset += uv_plane_len
@@ -192,11 +206,11 @@ cdef class Frame:
             Y = np.asarray(self._yuv_buffer[:y_plane_len]).reshape(self.height,self.width)
 
             if self.yuv_subsampling == turbojpeg.TJSAMP_422:
-                uv_plane_len = y_plane_len/2
+                uv_plane_len = y_plane_len//2
                 offset = y_plane_len
-                U = np.asarray(self._yuv_buffer[offset:offset+uv_plane_len]).reshape(self.height,self.width/2)
+                U = np.asarray(self._yuv_buffer[offset:offset+uv_plane_len]).reshape(self.height,self.width//2)
                 offset += uv_plane_len
-                V = np.asarray(self._yuv_buffer[offset:offset+uv_plane_len]).reshape(self.height,self.width/2)
+                V = np.asarray(self._yuv_buffer[offset:offset+uv_plane_len]).reshape(self.height,self.width//2)
             elif self.yuv_subsampling == turbojpeg.TJSAMP_420:
                 raise Exception("can not convert from YUV420 to YUV422")
             elif self.yuv_subsampling == turbojpeg.TJSAMP_444:
@@ -257,8 +271,7 @@ cdef class Frame:
         cdef int result
         cdef long unsigned int buf_size
         result = turbojpeg.tjDecompressHeader2(self.tj_context,  <unsigned char *>self._uvc_frame.data,
-                                        self._uvc_frame.data_bytes,
-                                        &j_width, &j_height, &jpegSubsamp)
+                                               self._uvc_frame.data_bytes, &j_width, &j_height, &jpegSubsamp)
 
         if result == -1:
             logger.error('Turbojpeg could not read jpeg header: %s'%turbojpeg.tjGetErrorStr() )
@@ -277,7 +290,6 @@ cdef class Frame:
             logger.warning('Turbojpeg jpeg2yuv: %s'%turbojpeg.tjGetErrorStr() )
         self.yuv_subsampling = jpegSubsamp
         self._yuv_converted = True
-
 
     def clear_caches(self):
         self._bgr_converted = False
@@ -324,9 +336,9 @@ cdef class Device_List(list):
                 idProduct,idVendor = desc.idProduct,desc.idVendor
                 device_address = uvc.uvc_get_device_address(dev)
                 bus_number = uvc.uvc_get_bus_number(dev)
-                devices.append({'name':product,
-                                'manufacturer':manufacturer,
-                                'serialNumber':serialNumber,
+                devices.append({'name':_to_str(product),
+                                'manufacturer':_to_str(manufacturer),
+                                'serialNumber':_to_str(serialNumber),
                                 'idProduct':idProduct,
                                 'idVendor':idVendor,
                                 'device_address':device_address,
@@ -339,12 +351,6 @@ cdef class Device_List(list):
         uvc.uvc_free_device_list(dev_list, 1)
 
         self[:] = devices
-
-    def __setitem__(self,index,value):
-        raise TypeError("This list does not support item assignment")
-
-    def __delitem__(self,index):
-        raise TypeError("This list does not support item deletion")
 
     cpdef cleanup(self):
         if self.ctx !=NULL:
@@ -383,9 +389,9 @@ def device_list():
             idProduct,idVendor = desc.idProduct,desc.idVendor
             device_address = uvc.uvc_get_device_address(dev)
             bus_number = uvc.uvc_get_bus_number(dev)
-            devices.append({'name':product,
-                            'manufacturer':manufacturer,
-                            'serialNumber':serialNumber,
+            devices.append({'name':_to_str(product),
+                            'manufacturer':_to_str(manufacturer),
+                            'serialNumber':_to_str(serialNumber),
                             'idProduct':idProduct,
                             'idVendor':idVendor,
                             'device_address':device_address,
@@ -477,9 +483,9 @@ cdef class Capture:
                             idProduct,idVendor = desc.idProduct,desc.idVendor
                             device_address = uvc.uvc_get_device_address(dev)
                             bus_number = uvc.uvc_get_bus_number(dev)
-                            self._info = {'name':product,
-                                            'manufacturer':manufacturer,
-                                            'serialNumber':serialNumber,
+                            self._info = {'name':_to_str(product),
+                                            'manufacturer':_to_str(manufacturer),
+                                            'serialNumber':_to_str(serialNumber),
                                             'idProduct':idProduct,
                                             'idVendor':idVendor,
                                             'device_address':device_address,
@@ -491,14 +497,14 @@ cdef class Capture:
 
         uvc.uvc_free_device_list(dev_list, 1)
         if dev == NULL:
-            raise ValueError("Device with uid: '%s' not found"%dev_uid)
+            raise DeviceNotFoundError("Device with uid: '%s' not found"%dev_uid)
 
 
         #once found we open the device
         self.dev = dev
         error = uvc.uvc_open(self.dev,&self.devh)
         if error != uvc.UVC_SUCCESS:
-            raise InitError("could not open device. Error:%s"%uvc_error_codes[error])
+            raise OpenError("could not open device. Error:%s"%uvc_error_codes[error])
         logger.debug("Device '%s' opended."%dev_uid)
 
     cdef _de_init_device(self):
@@ -542,6 +548,10 @@ cdef class Capture:
         self._stream_on = 1
         logger.debug("Stream start.")
 
+
+    def stop_stream(self):
+        self._stop()
+
     cdef _stop(self):
         cdef int status = 0
         status = uvc.uvc_stream_stop(self.strmh)
@@ -571,9 +581,9 @@ cdef class Capture:
 
 
 
-    def get_frame(self):
+    def get_frame(self,timeout=0):
         cdef int status, j_width,j_height,jpegSubsamp,header_ok
-        cdef int  timeout_usec = 1000000 #1sec
+        cdef int  timeout_usec = int(timeout*1e6) #sec to usec
         if not self._stream_on:
             self._start()
         cdef uvc.uvc_frame *uvc_frame = NULL
@@ -633,8 +643,8 @@ cdef class Capture:
                 std_ctl['unit_id'] = id_per_unit[std_ctl['unit']]
                 try:
                     control= Control(cap = self,**std_ctl)
-                except:
-                    logger.error("Could not init '%s'!" %std_ctl['display_name'])
+                except Exception as e:
+                    logger.error("Could not init '%s'! Error: %s" %(std_ctl['display_name'],e))
                 else:
                     self.controls.append(control)
 
@@ -669,10 +679,8 @@ cdef class Capture:
 
         logger.debug('avaible video modes: %s'%self._available_modes)
 
-    def print_info(self):
-        print "Capture device"
-        for k,v in self._info.iteritems():
-            print '\t %s:%s'%(k,v)
+    def __str__(self):
+        return "Capture device \n\t" + "\n\t".join(('%s: %s'%(k,v) for k,v in self._info.iteritems()))
 
 
     def close(self):
@@ -765,9 +773,10 @@ cdef void on_status_update(uvc.uvc_status_class status_class,
                         void *data,
                         size_t data_len,
                         void *user_ptr) with gil:
-    print "Callback"
-    print status_class, event,selector,status_attribute,data_len
-    print <object>user_ptr
+    pass
+    #"Callback"
+    #status_class, event,selector,status_attribute,data_len
+    #<object>user_ptr
 
 cdef inline int interval_to_fps(int interval):
     return int(10000000./interval)
