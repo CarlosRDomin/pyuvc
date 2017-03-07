@@ -27,14 +27,14 @@ for c in cap.controls:
     #     c.value = c.def_val
     print "{} = {} {} (def:{}, min:{}, max:{})".format(c.display_name, str(c.value), str(c.unit), str(c.def_val), str(c.min_val), str(c.max_val))
 print cap.name + " has the following available modes:\n\t" + str(cap.avaible_modes)
-cap.print_info()
+print cap
 
 modes = []
 for m in cap.avaible_modes:
     if m[2] == 60:
         modes.append(m)
 cap.frame_mode = modes[0]  # Choose biggest size with 60fps
-cap.frame_mode = cap.avaible_modes[np.argwhere(np.array(cap.avaible_modes)[:,2]>=60)[0]]
+cap.frame_mode = cap.avaible_modes[np.argwhere(np.array(cap.avaible_modes)[:,2]>=60).ravel()[0]]
 
 VIDEO_FOLDER = "img_test"
 if os.path.exists(VIDEO_FOLDER):

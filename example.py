@@ -1,7 +1,8 @@
 from __future__ import print_function
 
 import uvc
-# import cv2
+USE_CV2 = True
+if USE_CV2: import cv2
 from time import time,sleep
 
 try:
@@ -34,17 +35,16 @@ def test_cap(i,mode=(640,480,30),format='bgr',bandwidth_factor=1.3):
         print("%s - %s" %(title,time() - ts))
         ts = time()
 
-        # uncomment below lines for opencv preview
+        if USE_CV2:
+            if format == 'bgr':
+                data = frame.bgr
+            elif format == 'gray':
+                data = frame.gray
 
-        # if format == 'bgr':
-        #     data = frame.bgr
-        # elif format == 'gray':
-        #     data = frame.gray
-
-        # cv2.imshow(title,data)
-        # k = cv2.waitKey(1)
-        # if k == 27:
-        #     break
+            cv2.imshow(title,data)
+            k = cv2.waitKey(1)
+            if k == 27:
+                break
 
     cap = None
 
